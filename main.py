@@ -53,25 +53,50 @@ def valid(letter):
     return len(letter) == 1 and letter in ("A", "B")
 
 
+def validate_output(letter):
+    """Hard validation of the final answer before anything is written.
+
+    The entry must be exactly one character and nothing else — "A"
+    for coffee or "B" for tea. Any other value (empty, longer, or a
+    different letter) is a bug, not a choice, so fail loudly instead
+    of writing a bad entry.
+    """
+    assert isinstance(letter, str), f"output must be str, got {type(letter).__name__}"
+    assert len(letter) == 1, f"output must be exactly 1 character, got {len(letter)}: {letter!r}"
+    assert letter in ("A", "B"), f"output must be 'A' or 'B', got {letter!r}"
+    return letter
+
+
 def score(candidate):
-    """Score tuple in the judge's criterion order (validity first)."""
+    """Score tuple in the judge's criterion order (validity first).
+
+    Validity is a 1/0 gate, then the four scored criteria in order,
+    so comparing tuples reproduces the judge's lexicographic ranking:
+    the first criterion where two candidates differ decides.
+    """
     letter, vivid, funny, true, stands_alone = candidate
     return (1 if valid(letter) else 0, vivid, funny, true, stands_alone)
 
 
 def pick(candidates):
-    """First difference in criterion order decides, like the judge."""
+    """Rank candidates and return (winner, deciding criterion).
+
+    The winner is the top-ranked candidate; the deciding criterion is
+    the first one where it beats the runner-up, mirroring how the
+    judge weighs validity, then vivid, funny, true, stands-alone.
+    """
     ranked = sorted(candidates, key=score, reverse=True)
-    best = ranked[0]
-    runner_up = ranked[1]
+    best, runner_up = ranked[0], ranked[1]
+    best_score, runner_up_score = score(best), score(runner_up)
     for i, name in enumerate(("valid",) + CRITERIA):
-        if score(best)[i] != score(runner_up)[i]:
+        if best_score[i] != runner_up_score[i]:
             return best[0], name
     return best[0], "tie"
 
 
 def main():
     letter, deciding_criterion = pick(CANDIDATES)
+    validate_output(letter)
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "entry.txt")
